@@ -1,18 +1,22 @@
-int wrposs = 0;       //Possition to write the next byte to 
-int rposs = 0;        //Possition to read from - must be x amount of spaces behind wrposs
-int data[];           //Arry to store bytes in
-int testreg = 0;      //Test location for data to be sent to
-bool messread = false; //message beign checked and recieved.
-int messlng = 0;      //used to count bytes till ennd of massage - allow pull full message from buffer
-bool cmpmess = false; //used to indicate full message pulled from buffer. 
-int devadd = 0;       //device address
-int reglng = 0;       //device register length in number of bytes
-uint64_t regval = 0 ;       //register value
+byte wrposs = 0;           //Possition to write the next byte to 
+byte rposs = 0;            //Possition to read from - must be x amount of spaces behind wrposs
+byte data[255];            //Arry to store bytes in
+byte testreg = 0;          //Test location for data to be sent to
+bool messread = false;    //message beign checked and recieved.
+byte messlng = 0;          //used to count bytes till ennd of massage - allow pull full message from buffer
+bool cmpmess = false;     //used to indicate full message pulled from buffer. 
+byte devadd = 0;           //device address
+byte reglng = 0;           //device register length in number of bytes
+uint32_t regval = 0;     //register value
+
+
+unsigned long startMillis;  //some global variables available anywhere in the program
+unsigned long currentMillis;
 
 
 void setup() {
   Serial.begin(115200);
-  Serial1.begin(115200);  
+  Serial1.begin(115200);
 
 }
 
@@ -20,42 +24,34 @@ void loop() {
   //read from buffer to array, check if data good. either moves to next step or steps to next reading
   if (Serial1.available() > 0) {
     data[wrposs] = Serial1.read();
-    wrposs++;
+    wrposs++;  
     
-    if (messread == false && wrposs > rposs + 9){
-      //read possition 8byte behind wrposs. Message come through, check replay using correct digits, check length expected and parse. if not moce 1 space up and try again. add timeout function
-      if (data[rposs] == data[wrposs - 1] && data[rposs] == data[wrposs - 1]) {
+    if (messread == false && wrposs - rposs > 10){
+      //read possition 10byte behind wrposs. Message come through, check replay using correct digits, check length expected and parse. if not moce 1 space up and try again. add timeout function
+      if (data[rposs] == data[rposs + 8] && data[rposs + 1] == data[rposs + 9]) { //better to use rposs with only plus
         messread = true;
         devadd = data[rposs];
-        Serial.println("Device Address: " + devadd);
-        reglng = data[rposs + 9];     //change to read byte count from reply - check
-        Serial.println("Register length: " + reglng)
+        Serial1.write(devadd);
+        reglng = data[rposs + 10];     //change to read byte count from reply - check
+        Serial1.write(reglng);
       }
-      else{
+
+      if (messread == false && wrposs - rposs > 10){
         data[rposs] = 0;  //clear array possition
         rposs++;
       }
-    }
-  }
+    }  
 
-  //allow to read data still incoming based on lengh. calculate with reglng from roposs. once done shift rposs up. DOuble check counts in data to make sure moving to correct possition
-  while (messread == true){         //keep in data collection loop, kick out once data is recieved.
-    if (Serial1.available() >0){    //read to data array and count possition
-      data[wrposs] = Serial1.read();
-      wrposs++;
-    }
-    
-    if (wrposs == rposs + 9 + reglng;){
-      if (reglng = 1) {regval = ((data[reglng]));}  //write multiple possitions from data array to regval - check possitining 
-      if (reglng = 2) {regval = ((data[reglng] << 8) + (data[reglng + 1]));}
-      if (reglng = 3) {regval = ((data[reglng] << 16) + (data[reglng + 1] << 8) + (data[reglng + 2]));}
-      if (reglng = 4) {regval = ((data[reglng] << 24) +(data[reglng +1 ] << 16) + (data[reglng + 2] << 8) + (data[reglng + 3]));}
-      Serial.println("Register value: " + regval);
-    }
-
-    if (wrposs == rposs + 13 + reglng;){       //might have to plus one to get next buffer reading but might cause issues with the while loop.
-      rposs = rposs + 13 + reglng;            //shift possition up (still add data clear) 
-      messread = false;                       //excite while loop
+    if (messread == true && wrposs > rposs + reglng + 10){
+      if (reglng == 1) {regval = ((data[rposs + 11]));}  //write multiple possitions from data array to regval - check possitining 
+      if (reglng == 2) {regval = ((data[rposs + 11] << 8) + (data[rposs + 12]));}
+      if (reglng == 3) {regval = ((data[rposs + 11] << 16) + (data[rposs + 12] << 8) + (data[rposs + 13]));}
+      if (reglng == 4) {regval = ((data[rposs + 11] << 24) +(data[rposs + 12] << 16) + (data[rposs + 13] << 8) + (data[rposs + 14]));}
+      Serial1.write(data[rposs + 11]);
+      Serial1.write(data[rposs + 12]);
+      Serial1.print(regval);
+      messread = false;
+      rposs = rposs + reglng + 10;           
     }
   }
 }
